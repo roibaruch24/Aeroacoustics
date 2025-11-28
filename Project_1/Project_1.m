@@ -10,22 +10,56 @@ clear, clc, close all
 
 n_oct = [1;3; 12];
 fc_vec = zeros(1000,length(n_oct));
+fl_vec = zeros(1000,length(n_oct));
+fu_vec = zeros(1000,length(n_oct));
 freq_range = linspace(20,20000,1000);
 
 lower_to_upper = 2.^(1./n_oct);
 
 for i = 1:length(n_oct)
-    fc_upper = [1000];
-    while max(fc_upper) < max(freq_range)
+    n = n_oct(i);
+    fc_upper = 1000;
+    fl_upper = 1000*2^(-1/(2*n));
+    fu_upper = 1000*2^(1/(2*n));
+    while max(fu_upper) < max(freq_range)
         fc_upper(end+1) = fc_upper(end)*lower_to_upper(i);
+        fl_upper(end+1) = fc_upper(end)*2^(-1/(2*n));
+        fu_upper(end+1) = fc_upper(end)*2^(1/(2*n));
     end
-    fc_lower = [1000];
-    while min(fc_lower) > min(freq_range)
+    fc_lower = 1000;
+    fl_lower = 1000*2^(-1/(2*n));
+    fu_lower = 1000*2^(1/(2*n));
+    while min(fl_lower) > min(freq_range)
         fc_lower(end+1) = fc_lower(end)/lower_to_upper(i);
+        fl_lower(end+1) = fc_lower(end)*2^(-1/(2*n));
+        fu_lower(end+1) = fc_lower(end)*2^(1/(2*n));
     end
-    fc_vec_temp = [flip(fc_lower) fc_upper(2:end-1)];
-    fc_vec(1:length(fc_vec_temp),i) = fc_vec_temp;
+    fc_vec_temp = [flip(fc_lower(1:end-1))  fc_upper(2:end-1)];
+    fl_vec_temp = [flip(fl_lower(1:end-1))  fl_upper(2:end-1)];
+    fu_vec_temp = [flip(fu_lower(1:end-1))  fu_upper(2:end-1)];
+
+    fc_vec(1:numel(fc_vec_temp),i) = fc_vec_temp(:);
+    fl_vec(1:numel(fl_vec_temp),i) = fl_vec_temp(:);
+    fu_vec(1:numel(fu_vec_temp),i) = fu_vec_temp(:);
 end
+idx1  = fc_vec(:,1) > 0;   % valid rows for 1-oct
+idx3  = fc_vec(:,2) > 0;   % valid rows for 1/3-oct
+idx12 = fc_vec(:,3) > 0;   % valid rows for 1/12-oct
+
+Oct_1 = table( (1:sum(idx1))', fl_vec(idx1,1), fc_vec(idx1,1), fu_vec(idx1,1), ...
+    'VariableNames', {'Band','fl_Hz','fc_Hz','fu_Hz'});
+
+Oct_3 = table( (1:sum(idx3))', fl_vec(idx3,2), fc_vec(idx3,2), fu_vec(idx3,2), ...
+    'VariableNames', {'Band','fl_Hz','fc_Hz','fu_Hz'});
+
+Oct_12 = table( (1:sum(idx12))', fl_vec(idx12,3), fc_vec(idx12,3), fu_vec(idx12,3), ...
+    'VariableNames', {'Band','fl_Hz','fc_Hz','fu_Hz'});
+
+mkdir('Oct_tables')
+cd("Oct_tables\")
+table2latex(Oct_1, 'Oct_1.tex');
+table2latex(Oct_3, 'Oct_3.tex');
+table2latex(Oct_12, 'Oct_12.tex');
 
 
 %% B.2
