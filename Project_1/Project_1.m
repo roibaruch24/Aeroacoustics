@@ -1,6 +1,6 @@
-clear, clc;
+clear, clc, close all;
+current_path = pwd;
 %% B.1
-clear, clc, close all
 % Solving the lower, center and upper bands for 1, 1/3, 1/12 octave spectra
 % Starting from fc = 1000 Hz, using the relation that fu/fl = 2^(1/n) we
 % find all the center frequencies from 20 Hz to 20 kHz. than
@@ -60,7 +60,7 @@ cd("Oct_tables\")
 table2latex(Oct_1, 'Oct_1.tex');
 table2latex(Oct_3, 'Oct_3.tex');
 table2latex(Oct_12, 'Oct_12.tex');
-
+cd(current_path)
 
 %% B.2
 clear;
@@ -90,6 +90,7 @@ scatter(200,A_200_Hz,'filled');
 scatter(400,A_400_Hz,'filled');
 scatter(800,A_800_Hz,'filled');
 set(gca,'xscale','log');
+legend('dB(A)','400 Hz','200 Hz','800 Hz','Location','best')
 
 saveFigure(gcf, 'dB(A)', {'png','eps'}, 500);
 
@@ -107,71 +108,75 @@ end
 clear, close all;
 % Our signal is 10*sin(t). Now we need to compute the Fourier transform
 % using FFT, and using the analytical solution
-
-A  = 10;                 % amplitude
-fs = [10 100];           % sampling frequency [Hz]
-dt = 1./fs;
-T_tot = 50;              % sampling time period
-
 % Figure manegment
-fig = figure(1);
-fig.WindowState = 'maximized';
-ax_big = axes('Position',[0.13 0.11 0.775 0.815]);
-hold(ax_big,'on')
-grid(ax_big,'on')
-
-ax_samll = axes('position',[.65 .175 .25 .25]);
-box(ax_samll,'on')
-hold(ax_samll,'on')
-grid(ax_samll,'on')
-axis(ax_samll,'tight')
-
-xlabel(ax_big,'t [sec]')
-ylabel(ax_big,'f(x)')
-grid (ax_big,'on')
-title(ax_big,'Original Signal vs. fft and ifft')
 
 
-for i = 1:length(dt)
-    t = 0:dt(i):T_tot;
+Fs = 100;
+k_vec = [1 10 2.5 12.5];     % Number of cycles
+
+for i = 1:length(k_vec)
+    k = k_vec(i);
+    T = 2*pi*k;              % Sampling period [Sec]
+    t = 0:1/Fs:(T - 1/Fs);   % Time vector
+    N = length(t);
+    Df = Fs/N;
+    if mod(N,2)==0
+        f_vec = (-N/2 : N/2-1) * Df;     % even N
+    else
+        f_vec = (-(N-1)/2 : (N-1)/2) * Df; % odd N
+    end
+
+
+
+    A  = 10;                 % amplitude
+
+
+
+
+    Df = Fs/N;
+
     X = A*sin(t);
     F = fft(X);
     F_i = ifft(F);
-    % figure(1)
-    plot(ax_big,t,X,'DisplayName',['real signal for fs = ' num2str(fs(i)) 'Hz'])
-    plot(ax_big,t,F_i,'DisplayName',['transformed signal for fs = ' num2str(fs(i)) 'Hz'],'LineStyle','--')
+
+    figure
+    hold on;
+
+    xlabel('t [sec]')
+    ylabel('f(x)')
+    grid ('on')
+    title(['Original Signal vs. fft and ifft for ' num2str(k) ' cycles'])
+
+    plot(t,X,'DisplayName',['real signal for Df = ' num2str(Df) 'Hz'])
+    plot(t,F_i,'DisplayName',['transformed signal for Df = ' num2str(Df) 'Hz'],'LineStyle','--')
 
 
-    indexOfInterest = (t < 1.7) & (t > 1.4); % range of t near perturbation
-    plot(ax_samll,t(indexOfInterest),X(indexOfInterest)) % plot on new axes
-    plot(ax_samll,t(indexOfInterest),F_i(indexOfInterest)) % plot on new axes
-    legend(ax_big,'show','Location','southwest')
-    saveFigure(gcf, 'Fourier_Signal', {'png','eps'}, 500);
+    legend('show','Location','southwest')
+    saveFigure(gcf, ['Fourier_Signal_Df_' num2str(Df)] , {'png','eps'}, 500);
 
     N       = length(X);
-    df      = fs(i)/N;
-    f       = (-N/2:N/2-1)*df;          % frequency axis [-fs/2, fs/2)
+    f       = (-N/2:N/2-1)*Df;          % frequency axis [-fs/2, fs/2)
     F_shift = fftshift(F)/N;            % center zero freq, normalize
 
-    figure(2);
+    figure();
     stem(f, abs(F_shift));
     grid on;
     xlabel('f [Hz]')
     ylabel('|F(f)|')
-    title(['FFT vs analytical, fs = ' num2str(fs(i)) ' Hz'])
+    title(['FFT vs analytical, Df = ' num2str(Df) ' Hz for ' num2str(k) ' cycels'])
     hold on
 
     % analytical impulses at ±f0 (since sin(t) => omega0 = 1 rad/s)
     f0 = 1/(2*pi);                      % ≈ 0.159 Hz
     scatter(f0,5,'filled','r');
     scatter(-f0,5,'filled','r');
-    
+
     xlim([-5 5])
+    saveFigure(gcf, ['Fourier_FFT_vs_analytical_Df_' num2str(Df)], {'png','eps'}, 500);
 
 end
 
-figure(2);
-saveFigure(gcf, 'Fourier_FFT_vs_analytical', {'png','eps'}, 500);
+
 
 
 
@@ -294,3 +299,95 @@ close all
 
 load handel;
 sound(y, Fs);
+
+%% Help Functions
+
+function saveFigure(figHandle, fileBaseName, formats, resolution)
+% saveFigure  Save a MATLAB figure in multiple formats
+%
+%   saveFigure(figHandle, fileBaseName, formats, resolution)
+%
+%   Inputs:
+%     figHandle    – Handle to the figure (e.g. gcf)
+%     fileBaseName – Base name of the file (no extension)
+%     formats      – Cell array of strings, e.g. {'png','jpg','pdf'}
+%     resolution   – DPI resolution (optional, default = 300)
+%
+%   Example:
+%     % Save current figure as PNG, JPEG, and PDF at 300 dpi
+%     saveFigure(gcf, 'airfoil_lift_curve', {'png','jpeg','pdf'}, 300);
+
+    if nargin < 4
+        resolution = 300;
+    end
+
+    % Create "plots" folder in current working directory if it doesn't exist
+    plotDir = fullfile(pwd, 'plots');
+    if ~exist(plotDir, 'dir')
+        mkdir(plotDir);
+    end
+
+    for k = 1:numel(formats)
+        fmt = lower(formats{k});
+
+        switch fmt
+            case 'png'
+                fileName = fullfile(plotDir, [fileBaseName '.png']);
+                print(figHandle, fileName, '-dpng', ['-r' num2str(resolution)]);
+
+            case {'jpg','jpeg'}
+                fileName = fullfile(plotDir, [fileBaseName '.jpg']);
+                print(figHandle, fileName, '-djpeg', ['-r' num2str(resolution)]);
+
+            case {'tif','tiff'}
+                fileName = fullfile(plotDir, [fileBaseName '.tif']);
+                print(figHandle, fileName, '-dtiff', ['-r' num2str(resolution)]);
+
+            case 'bmp'
+                fileName = fullfile(plotDir, [fileBaseName '.bmp']);
+                print(figHandle, fileName, '-dbmp', ['-r' num2str(resolution)]);
+
+            case 'eps'
+                fileName = fullfile(plotDir, [fileBaseName '.eps']);
+                print(figHandle, fileName, '-depsc', ['-r' num2str(resolution)]);
+
+            case 'pdf'
+                fileName = fullfile(plotDir, [fileBaseName '.pdf']);
+                print(figHandle, fileName, '-dpdf', ['-r' num2str(resolution)]);
+
+            otherwise
+                warning('saveFigure:unknownFormat', ...
+                        'Format "%s" not supported – skipping.', fmt);
+        end
+    end
+end
+
+function table2latex(tbl, filename)
+    fid = fopen(filename,'w');
+
+    % Column names
+    fprintf(fid, '\\begin{table}[h]\n\\centering\n');
+    fprintf(fid, '\\begin{tabular}{%s}\n', repmat('c',1,width(tbl)));
+    fprintf(fid, '\\hline\n');
+
+    % Header row
+    for i = 1:width(tbl)
+        fprintf(fid, '%s', tbl.Properties.VariableNames{i});
+        if i < width(tbl), fprintf(fid, ' & '); end
+    end
+    fprintf(fid, ' \\\\ \\hline\n');
+
+    % Table body
+    for r = 1:height(tbl)
+        for c = 1:width(tbl)
+            fprintf(fid, '%g', tbl{r,c});
+            if c < width(tbl), fprintf(fid, ' & '); end
+        end
+        fprintf(fid, ' \\\\ \n');
+    end
+
+    fprintf(fid, '\\hline\n\\end{tabular}\n\\end{table}\n');
+    fclose(fid);
+end
+
+
