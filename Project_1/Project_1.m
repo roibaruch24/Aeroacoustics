@@ -57,9 +57,9 @@ Oct_12 = table( (1:sum(idx12))', fl_vec(idx12,3), fc_vec(idx12,3), fu_vec(idx12,
 
 mkdir('Oct_tables')
 cd("Oct_tables\")
-table2latex(Oct_1, 'Oct_1.tex');
-table2latex(Oct_3, 'Oct_3.tex');
-table2latex(Oct_12, 'Oct_12.tex');
+table2latex(Oct_1, 'Oct_1.tex','1-Octave Bands starting at \(f_c = 1000\) Hz');
+table2latex(Oct_3, 'Oct_3.tex','1/3 -Octave Bands starting at \(f_c = 1000\) Hz');
+table2latex(Oct_12, 'Oct_12.tex','1/12 -Octave Bands starting at \(f_c = 1000\) Hz');
 cd(current_path)
 
 %% B.2
@@ -89,10 +89,22 @@ A_800_Hz = A(f == 800);
 scatter(200,A_200_Hz,'filled');
 scatter(400,A_400_Hz,'filled');
 scatter(800,A_800_Hz,'filled');
+text(200, A_200_Hz - 10, sprintf('%.2f dB', A_200_Hz), ...
+    'VerticalAlignment','bottom','HorizontalAlignment','center', ...
+    'FontSize',10);
+
+text(400, A_400_Hz - 10, sprintf('%.2f dB', A_400_Hz), ...
+    'VerticalAlignment','bottom','HorizontalAlignment','center', ...
+    'FontSize',10);
+
+text(800, A_800_Hz - 10, sprintf('%.2f dB', A_800_Hz), ...
+    'VerticalAlignment','bottom','HorizontalAlignment','center', ...
+    'FontSize',10);
+
 set(gca,'xscale','log');
 legend('dB(A)','400 Hz','200 Hz','800 Hz','Location','best')
 
-saveFigure(gcf, 'dB(A)', {'png','eps'}, 500);
+saveFigure(gcf, 'dB(A)', {'png'}, 500);
 
 
 %% B.3
@@ -108,11 +120,10 @@ end
 clear, close all;
 % Our signal is 10*sin(t). Now we need to compute the Fourier transform
 % using FFT, and using the analytical solution
-% Figure manegment
 
 
 Fs = 100;
-k_vec = [1 10 2.5 12.5];     % Number of cycles
+k_vec = [2 8 1.5 8.5];     % Number of cycles
 
 for i = 1:length(k_vec)
     k = k_vec(i);
@@ -152,14 +163,14 @@ for i = 1:length(k_vec)
 
 
     legend('show','Location','southwest')
-    saveFigure(gcf, ['Fourier_Signal_Df_' num2str(Df)] , {'png','eps'}, 500);
+    saveFigure(gcf, ['Fourier_Signal_Df_' num2str(Df)] , {'png'}, 500);
 
     N       = length(X);
     f       = (-N/2:N/2-1)*Df;          % frequency axis [-fs/2, fs/2)
     F_shift = fftshift(F)/N;            % center zero freq, normalize
 
     figure();
-    stem(f, abs(F_shift));
+    stem(f, abs(F_shift),'filled');
     grid on;
     xlabel('f [Hz]')
     ylabel('|F(f)|')
@@ -171,8 +182,9 @@ for i = 1:length(k_vec)
     scatter(f0,5,'filled','r');
     scatter(-f0,5,'filled','r');
 
-    xlim([-5 5])
-    saveFigure(gcf, ['Fourier_FFT_vs_analytical_Df_' num2str(Df)], {'png','eps'}, 500);
+    xlim([-1 1])
+    legend('FFT','Analytical')
+    saveFigure(gcf, ['Fourier_FFT_vs_analytical_Df_' num2str(Df)], {'png'}, 500);
 
 end
 
@@ -191,12 +203,6 @@ mic_angle = 105;
 mic_idx = find(theta == mic_angle);
 N = length(MicData(:,mic_idx));
 
-% Using fft, we'll calculate the single-sided spectral density spectrum
-% using:
-% p'^2 = int(0 -> inf)[Gpp*df]
-% and in the discrete form:
-% p'^2 = (1/N*Fqs)*sum(Gpp*Df)
-
 df=Fqs/N;
 f=(0:N/2)*df; % Taking the first positive side without the nyquist frequency
 
@@ -209,6 +215,13 @@ Spp = abs(p_s.^2)/(Fqs*N);
 
 Gpp = 2*Spp(1:N/2+1);
 
+% Parsvel check FFT
+p_rms_time = mean(abs(p_fluct.^2));
+p_rms_fft = sum(Gpp)*df;         
+ParsevalError = (p_rms_fft - p_rms_time);
+
+fprintf('Parseval Error FFT = %.6e\n', ParsevalError);
+
 SPL=10*log10(Gpp*df/(p_ref^2));
 
 figure(1)
@@ -217,7 +230,7 @@ xlabel('Frequency [Hz]')
 ylabel('SPL [dB]')
 grid on
 
-saveFigure(gcf, 'SPL_Fourier', {'png','eps'}, 500);
+saveFigure(gcf, 'SPL_Fourier', {'png'}, 500);
 
 % Now using Welch's method:
 Df = 1.235;
@@ -234,7 +247,7 @@ xlabel('Frequency [Hz]')
 ylabel('SPL [dB]')
 grid on
 
-saveFigure(gcf, 'SPL_Welch', {'png','eps'}, 500);
+saveFigure(gcf, 'SPL_Welch', {'png'}, 500);
 
 omega = RPM/60;
 f_welch_norm = f_welch/(B*omega);
@@ -245,7 +258,15 @@ xlabel('$\frac{F}{B \cdot \omega}$ [Hz]')
 ylabel('SPL [dB]')
 grid on
 
-saveFigure(gcf, 'SPL_Welch_Norm', {'png','eps'}, 500);
+% Parsvel check FFT
+p_rms_time = mean(abs(p_fluct.^2));
+p_rms_fft = sum(Ggg_welch*df);            % p_rms^2 in S domain
+ParsevalError = (p_rms_fft - p_rms_time);
+
+fprintf('Parseval Error pwelch = %.6e\n', ParsevalError);
+
+
+saveFigure(gcf, 'SPL_Welch_Norm', {'png'}, 500);
 
 %% C.3
 close all
@@ -284,7 +305,7 @@ c.Label.String = 'SPL [dB]';
 % Radial-axis label f/f_b
 text(-10, 50, '$f_{norm}$','HorizontalAlignment','center');
 
-saveFigure(gcf, 'SPL_vs_theta', {'png','eps'}, 500);
+saveFigure(gcf, 'SPL_vs_theta', {'png'}, 500);
 
 close all
 
@@ -361,32 +382,56 @@ function saveFigure(figHandle, fileBaseName, formats, resolution)
     end
 end
 
-function table2latex(tbl, filename)
+function table2latex(tbl, filename, caption, label)
+
+    % Optional caption/label
+    if nargin < 3, caption = ''; end
+    if nargin < 4, label = ''; end
+
+    % Replace _ with \_
+    escapeUnderscore = @(s) strrep(s, '_', '\_');
+
     fid = fopen(filename,'w');
 
-    % Column names
-    fprintf(fid, '\\begin{table}[h]\n\\centering\n');
+    fprintf(fid, '\\begin{table}[h]\n');
+    fprintf(fid, '\\centering\n');
+
     fprintf(fid, '\\begin{tabular}{%s}\n', repmat('c',1,width(tbl)));
     fprintf(fid, '\\hline\n');
 
     % Header row
     for i = 1:width(tbl)
-        fprintf(fid, '%s', tbl.Properties.VariableNames{i});
+        header = escapeUnderscore(tbl.Properties.VariableNames{i});
+        fprintf(fid, '\\(%s\\)', header);
         if i < width(tbl), fprintf(fid, ' & '); end
     end
     fprintf(fid, ' \\\\ \\hline\n');
 
-    % Table body
+    % Body rows
     for r = 1:height(tbl)
         for c = 1:width(tbl)
-            fprintf(fid, '%g', tbl{r,c});
+            fprintf(fid, '\\(%g\\)', tbl{r,c});
             if c < width(tbl), fprintf(fid, ' & '); end
         end
         fprintf(fid, ' \\\\ \n');
     end
 
-    fprintf(fid, '\\hline\n\\end{tabular}\n\\end{table}\n');
+    fprintf(fid, '\\hline\n');
+    fprintf(fid, '\\end{tabular}\n');
+
+    % Bottom caption + label
+    if ~isempty(caption)
+        fprintf(fid, '\\caption{%s}\n', caption);
+    end
+    if ~isempty(label)
+        fprintf(fid, '\\label{%s}\n', label);
+    end
+
+    fprintf(fid, '\\end{table}\n');
+
     fclose(fid);
 end
+
+
 
 
