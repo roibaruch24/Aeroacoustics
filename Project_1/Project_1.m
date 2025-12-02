@@ -195,20 +195,19 @@ N = length(MicData(:,mic_idx));
 % using:
 % p'^2 = int(0 -> inf)[Gpp*df]
 % and in the discrete form:
-% p'^2 = (1/N^2)*sum(Gpp*Df)
+% p'^2 = (1/N*Fqs)*sum(Gpp*Df)
 
 df=Fqs/N;
-f=(0:N/2-1)*df; % Taking the first positive side without the nyquist frequency
-pos_side_idx = 1:N/2;
+f=(0:N/2)*df; % Taking the first positive side without the nyquist frequency
 
 p_fluct = MicData(:,mic_idx);  % The mic fluctuations are p'
 p_s = fft(p_fluct); % Taking fourier transform on the mic data
 
-p_rms_sqr = abs(p_s(1:N/2)).^2;
-p_rms_sqr(2:end-1)=2*(p_rms_sqr(2:end-1)); % Taking the positive side and
+Spp = abs(p_s.^2)/(Fqs*N);
+% Spp=(p_rms_sqr_norm); % Taking the positive side and
 % multiplying by 2, exexpt the start and nyquist frequency
 
-Gpp = p_rms_sqr/df;
+Gpp = 2*Spp(1:N/2+1);
 
 SPL=10*log10(Gpp*df/(p_ref^2));
 
