@@ -216,11 +216,11 @@ Spp = abs(p_s.^2)/(Fqs*N);
 Gpp = 2*Spp(1:N/2+1);
 
 % Parsvel check FFT
-p_rms_time = mean(abs(p_fluct.^2));
+p_rms_time = mean(p_fluct.^2);
 p_rms_fft = sum(Gpp)*df;         
 ParsevalError = (p_rms_fft - p_rms_time);
 
-fprintf('Parseval Error FFT = %.6e\n', ParsevalError);
+fprintf('Parseval Error FFT = %.6e\n', abs(ParsevalError));
 
 SPL=10*log10(Gpp*df/(p_ref^2));
 
@@ -263,7 +263,7 @@ p_rms_time = mean(abs(p_fluct.^2));
 p_rms_fft = sum(Ggg_welch*df);            % p_rms^2 in S domain
 ParsevalError = (p_rms_fft - p_rms_time);
 
-fprintf('Parseval Error pwelch = %.6e\n', ParsevalError);
+fprintf('Parseval Error pwelch = %.6e\n', abs(ParsevalError));
 
 
 saveFigure(gcf, 'SPL_Welch_Norm', {'png'}, 500);
